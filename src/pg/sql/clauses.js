@@ -50,6 +50,29 @@ const aggSql = {
   $min: (prop) => sql`min((${lookupNumeric(prop)})::numeric)`,
 };
 
+const keyPathGenerator = (node, parentNode) => {
+  const branches = Object.keys(node);
+
+  return branches.reduce((collection, branch) => {
+      let path = [];
+      if (typeof node[branch] === 'object') {
+          const childPaths = keyPathGenerator(node[branch], branch);
+
+          if (parentNode === undefined || parentNode === null) {
+            path = childPaths.map((childPath) => `"${branch}" -> ${childPath}`);
+          } else {
+            path = childPaths.map((childPath) => `'${branch}' -> ${childPath}`);
+          }
+      } else {
+          if (node[branch] === true) {
+              path = [`'${branch}'`];
+          }
+      }
+
+      return [...collection, ...path];
+  }, []);
+}
+
 export const getSelectCols = (options, projection = null) => {
   if (!projection) return sql`*`;
 
@@ -66,7 +89,13 @@ export const getSelectCols = (options, projection = null) => {
         sql`jsonb_build_object(${join(subSqls, ', ')}) AS "${raw(key)}"`,
       );
     } else {
-      sqls.push(sql`"${raw(key)}"`);
+      if (typeof projection[key] === 'object') {
+        keyPathGenerator({ [key]: projection[key] }).forEach((path) => {
+          sqls.push({"values":[],"strings":[path]});
+        })
+      } else {
+        sqls.push(sql`"${raw(key)}"`);
+      }
     }
   }
 
