@@ -50,27 +50,24 @@ const aggSql = {
   $min: (prop) => sql`min((${lookupNumeric(prop)})::numeric)`,
 };
 
-const keyPathGenerator = (node, parentNode) => {
-  const branches = Object.keys(node);
+const getOptimisedJsonBuild = (object, path = [], parentPropertyName, options) => {
+  const propertyNames = Object.keys(object);
+  const propertyPath = [...path, parentPropertyName];
+  const buildConfig = [];
 
-  return branches.reduce((collection, branch) => {
-      let path = [];
-      if (typeof node[branch] === 'object') {
-          const childPaths = keyPathGenerator(node[branch], branch);
+  propertyNames.forEach((propertyName) => {
+    const property = object[propertyName];
+    if (typeof property === 'object') {
+      const childJSONBuild = getOptimisedJsonBuild(property, propertyPath, propertyName, options);
+      buildConfig.push(sql`${propertyName}::text, jsonb_build_object(${join(childJSONBuild, ", ")})`);
+    } else {
+        if (property === true) {
+          buildConfig.push(sql`${propertyName}::text, ${lookup([...propertyPath, propertyName].join('.'), options)}`);
+        }
+    }
+  });
 
-          if (parentNode === undefined || parentNode === null) {
-            path = childPaths.map((childPath) => `"${branch}" -> ${childPath}`);
-          } else {
-            path = childPaths.map((childPath) => `'${branch}' -> ${childPath}`);
-          }
-      } else {
-          if (node[branch] === true) {
-              path = [`'${branch}'`];
-          }
-      }
-
-      return [...collection, ...path];
-  }, []);
+  return buildConfig;
 }
 
 export const getSelectCols = (options, projection = null) => {
@@ -89,13 +86,13 @@ export const getSelectCols = (options, projection = null) => {
         sql`jsonb_build_object(${join(subSqls, ', ')}) AS "${raw(key)}"`,
       );
     } else {
-      if (typeof projection[key] === 'object') {
-        keyPathGenerator({ [key]: projection[key] }).forEach((path) => {
-          sqls.push({"values":[],"strings":[path]});
-        })
-      } else {
-        sqls.push(sql`"${raw(key)}"`);
-      }
+        if (typeof projection[key] === 'object') {
+          const optimisedJsonBuild = getOptimisedJsonBuild(projection[key], [], key, options);
+
+          sqls.push(sql`jsonb_build_object(${join(optimisedJsonBuild, ", ")}) AS "${raw(key)}"`);
+        } else {
+          sqls.push(sql`"${raw(key)}"`);
+        }
     }
   }
 
