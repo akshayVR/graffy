@@ -362,7 +362,7 @@ pre {
   cursor: help;
 }
 
-@media screen and (-ms-high-contrast: active) {
+@media screen and (prefers-contrast: more) {
   code[class*="language-"],
   pre[class*="language-"] {
     color: windowText;

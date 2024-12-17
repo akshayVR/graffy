@@ -50,15 +50,12 @@ const aggSql = {
   $min: (prop) => sql`min((${lookupNumeric(prop)})::numeric)`,
 };
 
-const getOptimisedJsonBuild = (
-  object,
-  path = [],
-  parentPropertyName,
-  options,
-) => {
+const getOptimisedJsonBuild = (object, path, parentPropertyName, options) => {
   const propertyNames = Object.keys(object);
   const propertyPath = [...path, parentPropertyName];
   const buildConfig = [];
+
+  path = path || [];
 
   propertyNames.forEach((propertyName) => {
     const property = object[propertyName];
