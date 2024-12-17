@@ -72,8 +72,8 @@ describe('clauses', () => {
       name: 1,
       email: 2,
       profile: {
-          id: 3,
-          name: 4,
+        id: 3,
+        name: 4,
       },
     };
     const query = getJsonBuildTrusted(data);
